@@ -9,11 +9,6 @@ export const addBLE = (device) => ({
   device,
 });
 
-export const changedColor = (color) => ({
-  type: "CHANGED_COLOR",
-  newColor: color,
-});
-
 export const connectedDevice = (device) => ({
   type: "CONNECTED_DEVICE",
   connectedDevice: device,
@@ -158,28 +153,6 @@ export const sendChangeMode = (newMode) => {
       }
     } catch (err) {
       console.log(err);
-    }
-  };
-};
-
-export const updateColor = (newcolor) => {
-  return (dispatch, getState, DeviceManager) => {
-    const state = getState();
-    console.log("thunk update color: ", state.BLEs.connectedDevice);
-    try {
-      // this.info("Updating Device")
-      let LEDResponse =
-        state.BLEs.connectedDevice.writeCharacteristicWithResponseForService(
-          "00010000-89BD-43C8-9231-40F6E305F96D",
-          "00010001-89BD-43C8-9231-40F6E305F96D",
-          Buffer.from("0", "ascii").toString(newcolor)
-        );
-      dispatch(changeStatus("Changing Color"));
-      dispatch(changedColor(newcolor));
-      return true;
-    } catch (error) {
-      console.log("update Error:", error);
-      return false;
     }
   };
 };

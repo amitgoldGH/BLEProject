@@ -1,6 +1,5 @@
 const INITIAL_STATE = {
   BLEList: [],
-  color: "#800080",
   connectedDevice: {},
   status: "disconnected",
   inputString: "",
@@ -25,12 +24,6 @@ const BLEReducer = (state = INITIAL_STATE, action) => {
           status: action.status,
         };
       }
-    case "CHANGED_COLOR":
-      return {
-        ...state,
-        color: action.newColor,
-        status: action.status,
-      };
     case "CONNECTED_DEVICE":
       console.log("Reducer connected device", action);
       return {
