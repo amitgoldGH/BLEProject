@@ -13,6 +13,7 @@ import {
   TextInput,
   Alert,
 } from "react-native";
+import { SPRING_SERVER_ADDRESS, USER_LOGIN } from "../constants/constants";
 
 function LoginPage({ navigation }) {
   const [data, setData] = React.useState({
@@ -58,23 +59,22 @@ function LoginPage({ navigation }) {
     };
     const postFunc = async () => {
       try {
-        await fetch(
-          "http://10.100.102.18:8091/api/users/login",
-          requestOptions
-        ).then((response) => {
-          console.log(response.status);
-          if (response.status === 200) {
-            response.json().then((data) => {
-              Alert.alert("Login Success", "Welcome " + data.username);
-              navigation.navigate("Home", { username: data.username });
-            });
-          } else {
-            response.json().then((data) => {
-              console.log(data.message);
-              Alert.alert("" + data.status, data.message);
-            });
+        await fetch(SPRING_SERVER_ADDRESS + USER_LOGIN, requestOptions).then(
+          (response) => {
+            console.log(response.status);
+            if (response.status === 200) {
+              response.json().then((data) => {
+                Alert.alert("Login Success", "Welcome " + data.username);
+                navigation.navigate("Home", { username: data.username });
+              });
+            } else {
+              response.json().then((data) => {
+                console.log(data.message);
+                Alert.alert("" + data.status, data.message);
+              });
+            }
           }
-        });
+        );
       } catch (error) {
         console.error(error);
       }
