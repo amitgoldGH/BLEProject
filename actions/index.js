@@ -1,8 +1,11 @@
+/* globals fetch */
 import { Buffer } from "buffer";
 import {
+  SPRING_SERVER_ADDRESS,
   PERIPHERAL_CHARACTERISTIC_UUID,
   PERIPHERAL_SERVICE_UUID,
-} from "../Screens/PairingPage";
+  NUMBER_OF_DEVICES_TO_SCAN,
+} from "../constants/constants";
 
 export const addBLE = (device) => ({
   type: "ADD_BLE",
@@ -20,14 +23,24 @@ export const changeStatus = (status) => ({
   status: status,
 });
 
+export const setSession = (sessionId) => ({
+  type: "SET_SESSION",
+  sessionId: sessionId,
+});
+
 export const changeMode = (mode) => ({
   type: "CHANGE_MODE",
   mode: mode,
 });
 
-export const changeStringValue = (inputString) => ({
-  type: "CHANGE_STRING_VALUE",
-  inputString: inputString,
+export const changeCprValue = (cprValue) => ({
+  type: "CHANGE_CPR_VALUE",
+  cprValue: cprValue,
+});
+
+export const changeBvmValue = (bvmValue) => ({
+  type: "CHANGE_BVM_VALUE",
+  bvmValue: bvmValue,
 });
 
 //some thunks to control the BLE Device
@@ -54,11 +67,12 @@ export const scan = () => {
       //this.setState({"status":"Scanning..."});
       // console.log("scanning...");
       counter += 1;
-      if (counter > 10) {
+      if (counter > NUMBER_OF_DEVICES_TO_SCAN) {
         console.log("Finished scanning");
         dispatch(changeStatus("Finished scanning"));
         DeviceManager.stopDeviceScan();
-      } else if (counter < 10) dispatch(changeStatus("Scanning"));
+      } else if (counter < NUMBER_OF_DEVICES_TO_SCAN)
+        dispatch(changeStatus("Scanning"));
 
       if (error) {
         console.log(error);
@@ -102,7 +116,7 @@ export const connectDevice = (device) => {
               return device;
             },
             (error) => {
-              console.log(this._logError("SCAN", error));
+              console.log(("SCAN ERROR", error));
               //return null;
             }
           );
