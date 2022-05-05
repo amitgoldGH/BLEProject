@@ -24,23 +24,15 @@ import {
   changeMode,
   changeStringValue,
 } from "../actions";
-import { start } from "repl";
-import { callbackify } from "util";
 
-// import {
-//     BluetoothManager,
-//     connect,
-//     disconnect,
-//     doDeviceScan,
-//     stopScanning,
-//     useDevicesStore,
-//   } from "../Bluetooth/BluetoothManager";
-
-const DEVICE_ADVERTISED_NAME = "Manikin";
-const DEVICE_MAC_ADDRESS = "18:93:D7:07:D7:1E";
-export const PERIPHERAL_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
-export const PERIPHERAL_CHARACTERISTIC_UUID =
-  "0000ffe1-0000-1000-8000-00805f9b34fb";
+import {
+  DEVICE_ADVERTISED_NAME,
+  DEVICE_MAC_ADDRESS,
+  PERIPHERAL_SERVICE_UUID,
+  PERIPHERAL_CHARACTERISTIC_UUID,
+  TIMEOUT_COUNT,
+  SLEEP_TIME_MS,
+} from "../constants/constants";
 
 export async function checkLocationPermission() {
   const locationPermission = await PermissionsAndroid.check(
@@ -62,19 +54,18 @@ const sleep = (milliseconds) => {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 };
 
-// function onlyUnique(value, index, self) {
-//   return self.indexOf(value) === index;
-// }
-
 const deviceList = [];
-const DATA = [];
 
 function PairingPage({ navigation }) {
   const store = useStore();
   const [manikinDetectionState, setManikinDetectionState] =
     React.useState(false);
+
   const [connectState, setConnectState] = React.useState(false);
 
+  const [statusTextState, setStatusTextState] = React.useState("Idle");
+
+  // SCAN AND CONNECT FUNCTION
   const scanForDevices = async () => {
     // Check if location permissions are allowed
     checkLocationPermission().then((res) => {
@@ -89,20 +80,34 @@ function PairingPage({ navigation }) {
 
     // Stay in loop until scanning is complete.
     let currStoreState = store.getState();
+    let scanLoopCounter = 0; // Counter to insure not stuck in loop.
     while (
       currStoreState.BLEs.status != "Finished scanning" ||
       currStoreState.BLEs.status == "Scanning"
     ) {
       currStoreState = store.getState();
+
+      // if scan doesn't finish in 20 seconds stop the function.
+      scanLoopCounter += 1;
+      if (scanLoopCounter >= TIMEOUT_COUNT) {
+        setStatusTextState(
+          "Failed to finish scan in " + TIMEOUT_COUNT + " seconds, try again."
+        );
+        return;
+      }
+
       console.log(
         "Waiting in async function for devices to scan, status: ",
-        currStoreState.BLEs.status
+        currStoreState.BLEs.status,
+        "scan loop counter: ",
+        scanLoopCounter
       );
-      await sleep(1000);
+      setStatusTextState("Scanning... time:" + scanLoopCounter);
+
+      await sleep(SLEEP_TIME_MS);
     }
 
-    // Declare a variable for the manikin
-    let wantedDevice;
+    let wantedDevice; // Declare a variable for the manikin
 
     // Iterate over all scanned BLE devices to find our manikin
     currStoreState.BLEs.BLEList.forEach((device) => {
@@ -118,30 +123,48 @@ function PairingPage({ navigation }) {
         wantedDevice = store.dispatch(connectDevice(device));
       }
     });
+
+    let connectionLoopCounter = 0; // Counter to insure not stuck in connection loop in case device gets disconnected.
+
     // Stay in while loop until finishing connection.
     while (
       currStoreState.BLEs.status != "Listening" &&
       currStoreState.BLEs.status != "Connected"
     ) {
       currStoreState = store.getState();
+
+      // If stuck in loop trying to connect to device for over 20 seconds stop the function.
+      connectionLoopCounter += 1;
+      if (connectionLoopCounter >= TIMEOUT_COUNT) {
+        setStatusTextState(
+          "Failed to connect in " + TIMEOUT_COUNT + " seconds, try again."
+        );
+        return;
+      }
+
       console.log(
         "Waiting in async function for device to connect, status: ",
-        currStoreState.BLEs.status
+        currStoreState.BLEs.status,
+        " connection loop counter: ",
+        connectionLoopCounter
       );
-      await sleep(500);
+      setStatusTextState("Connecting... time:" + connectionLoopCounter);
+
+      await sleep(SLEEP_TIME_MS);
     }
     setConnectState(true);
+    setStatusTextState("Connected!");
   };
 
-  const testFunction = () => {
-    const currState = store.getState();
-    currState.BLEs.BLEList.forEach((device) => {
-      console.log("in for each, device: ", device.name);
-      if (!DATA.some((item) => item.id === device.id))
-        DATA.push({ name: device.name, id: device.id });
-    });
-    console.log(DATA);
-  };
+  // const testFunction = () => {
+  //   const currState = store.getState();
+  //   currState.BLEs.BLEList.forEach((device) => {
+  //     console.log("in for each, device: ", device.name);
+  //     if (!DATA.some((item) => item.id === device.id))
+  //       DATA.push({ name: device.name, id: device.id });
+  //   });
+  //   console.log(DATA);
+  // };
 
   const discoverOnPress = async () => {
     checkLocationPermission().then((res) => {
@@ -164,7 +187,6 @@ function PairingPage({ navigation }) {
       }
     });
     console.log("Exited for each");
-
     console.log("In async function before while loop");
     while (
       currStoreState.BLEs.status != "Listening" &&
@@ -175,7 +197,8 @@ function PairingPage({ navigation }) {
         "Waiting in async function for device to discover, status: ",
         currStoreState.BLEs.status
       );
-      await sleep(200);
+
+      await sleep(SLEEP_TIME_MS);
     }
     setConnectState(true);
     // monitorInput(currStoreState.BLEs.connectedDevice);
@@ -311,55 +334,56 @@ function PairingPage({ navigation }) {
           <View style={[connectState ? styles.connected : styles.disconnected]}>
             <Text>Manikin Connection Status</Text>
           </View>
-          <TouchableOpacity
-            style={styles.discoverButton}
-            onPress={scanForDevices}
-          >
-            <Text>Scan and Connect</Text>
+          <View style={{ backgroundColor: "white", borderRadius: 3 }}>
+            <Text>State: {statusTextState}</Text>
+          </View>
+        </View>
+        <View style={styles.middleSegment}>
+          <TouchableOpacity style={styles.scanButton} onPress={scanForDevices}>
+            <Text style={styles.scanButtonText}>Scan and Connect</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.discoverButton}
             onPress={discoverOnPress}
           >
             <Text>Discover nearby devices button</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </TouchableOpacity> */}
+          {/* <TouchableOpacity
             style={styles.discoverButton}
             onPress={testReadButton}
           >
             <Text>test read</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </TouchableOpacity> */}
+          {/* <TouchableOpacity
             style={styles.discoverButton}
             onPress={testDisconnectButton}
           >
             <Text>test disconnect</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.discoverButton} onPress={testButton}>
+          </TouchableOpacity> */}
+          {/* <TouchableOpacity style={styles.discoverButton} onPress={testButton}>
             <Text>test button</Text>
-          </TouchableOpacity>
-          <View style={styles.selectLabel}>
-            {/* <Text>Select the manikin device and pair</Text> */}
-            {/* <Text>Value:</Text> */}
-          </View>
+          </TouchableOpacity> */}
+          {/* <View style={styles.selectLabel}>
+            <Text>Select the manikin device and pair</Text>
+            <Text>Value:</Text>
+          </View> */}
 
           {/* <View style={styles.discoveredDevicesBox}>
                         <Text>placeholder devices</Text>
                     </View> */}
         </View>
-
         <View style={styles.bottomSegment}>
           <TouchableOpacity
             style={styles.pairButton}
             onPress={() => navigation.navigate("CPR_Measurement")}
           >
-            <Text>CPR</Text>
+            <Text style={styles.buttonText}>CPR</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.pairButton}
             onPress={() => navigation.navigate("BVM_Measurement")}
           >
-            <Text>BVM</Text>
+            <Text style={styles.buttonText}>BVM</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -368,6 +392,10 @@ function PairingPage({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
+
   detected: {
     backgroundColor: "green",
     borderRadius: 3,
@@ -385,21 +413,22 @@ const styles = StyleSheet.create({
     backgroundColor: "red",
     borderRadius: 3,
   },
-
-  background: {
-    flex: 1,
+  scanButtonText: {
+    color: "white",
+    fontFamily: "Roboto",
   },
-
-  topSegment: {
-    flex: 4,
-    flexDirection: "column",
-    // justifyContent: 'space-between',
-    justifyContent: "space-evenly",
+  scanButton: {
+    backgroundColor: "black",
+    borderStyle: "solid",
+    borderRadius: 10,
+    borderWidth: 3,
+    justifyContent: "center",
     alignItems: "center",
+    width: "50%",
+    height: "20%",
   },
-
   discoverButton: {
-    backgroundColor: "cyan",
+    backgroundColor: "red",
     borderStyle: "solid",
     borderRadius: 10,
     borderWidth: 3,
@@ -428,16 +457,32 @@ const styles = StyleSheet.create({
     height: "60%",
     width: "75%",
   },
-
+  topSegment: {
+    flex: 4,
+    flexDirection: "column",
+    top: 30,
+    // justifyContent: 'space-between',
+    // justifyContent: "space-evenly",
+    alignItems: "center",
+  },
+  middleSegment: {
+    flex: 5,
+    flexDirection: "column",
+    // justifyContent: 'space-between',
+    // justifyContent: "space-evenly",
+    alignItems: "center",
+  },
   bottomSegment: {
-    flex: 1,
+    flex: 2,
     justifyContent: "center",
     alignItems: "center",
     flexDirection: "row",
   },
-
+  buttonText: {
+    color: "white",
+  },
   pairButton: {
-    backgroundColor: "green",
+    backgroundColor: "black",
     borderStyle: "solid",
     borderRadius: 10,
     borderWidth: 3,
