@@ -7,8 +7,9 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
+import { SETTING_PAGE_TITLE, PAIRING_PAGE_TITLE } from "../constants/constants";
 
-function LandingPage({ navigation }) {
+function LandingPage({ navigation, route }) {
   return (
     <ImageBackground
       style={styles.background}
@@ -21,7 +22,7 @@ function LandingPage({ navigation }) {
           style={styles.settingsButton}
           onPress={() => {
             console.log("Landing page");
-            navigation.navigate("Settings");
+            navigation.navigate(SETTING_PAGE_TITLE);
           }}
         >
           <Image
@@ -33,16 +34,20 @@ function LandingPage({ navigation }) {
       </View>
 
       <View style={styles.middleView}>
-        <View style={styles.statisticsTextBox}>
+        {/* <View style={styles.statisticsTextBox}>
           <Text>statistics text placeholder</Text>
-        </View>
+        </View> */}
       </View>
 
       <View style={styles.bottomView}>
         <TouchableOpacity
           title="Pair button"
           style={styles.pairButton}
-          onPress={() => navigation.navigate("Pairing")}
+          onPress={() =>
+            navigation.navigate(PAIRING_PAGE_TITLE, {
+              username: route.params.username,
+            })
+          }
         >
           <Text>Pair and Start!</Text>
         </TouchableOpacity>
@@ -50,14 +55,6 @@ function LandingPage({ navigation }) {
     </ImageBackground>
   );
 }
-
-const settingPress = () => {
-  console.log("Setting button pressed");
-};
-
-const pairPress = () => {
-  console.log("Pair button pressed");
-};
 
 const styles = StyleSheet.create({
   background: {
@@ -77,8 +74,8 @@ const styles = StyleSheet.create({
     alignSelf: "baseline",
     height: "100%",
     width: "35%",
-    left: 20,
-    top: 10,
+    left: -10,
+    top: 0,
   },
   cogIcon: {
     height: "100%",
@@ -98,7 +95,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     right: 40,
-    bottom: 50,
+    bottom: 100,
   },
 
   middleView: {
