@@ -11,8 +11,13 @@ import {
   TextInput,
   Alert,
 } from "react-native";
+import {
+  LOGIN_PAGE_TITLE,
+  SPRING_SERVER_ADDRESS,
+  USER_CREATE,
+} from "../constants/constants";
 
-function RegistrationPage() {
+function RegistrationPage({ navigation }) {
   const [data, setData] = React.useState({
     username: "",
     password: "",
@@ -57,7 +62,7 @@ function RegistrationPage() {
     };
     const postFunc = async () => {
       try {
-        await fetch("http://10.100.102.18:8091/api/users", requestOptions).then(
+        await fetch(SPRING_SERVER_ADDRESS + USER_CREATE, requestOptions).then(
           (response) => {
             console.log(response.status);
             if (response.status === 200) {
@@ -123,7 +128,7 @@ function RegistrationPage() {
           style={styles.registerButton}
           onPress={() => {
             signUpPress();
-            // navigation.navigate('Login');
+            navigation.navigate(LOGIN_PAGE_TITLE);
           }}
         >
           <Text styles={styles.textSign}>Sign up</Text>
