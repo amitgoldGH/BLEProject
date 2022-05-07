@@ -13,7 +13,13 @@ import {
   TextInput,
   Alert,
 } from "react-native";
-import { SPRING_SERVER_ADDRESS, USER_LOGIN } from "../constants/constants";
+import { setUsername } from "../actions/index";
+import {
+  SPRING_SERVER_ADDRESS,
+  USER_LOGIN,
+  LANDING_PAGE_TITLE,
+  REGISTRATION_PAGE_TITLE,
+} from "../constants/constants";
 
 function LoginPage({ navigation }) {
   const [data, setData] = React.useState({
@@ -65,7 +71,10 @@ function LoginPage({ navigation }) {
             if (response.status === 200) {
               response.json().then((data) => {
                 Alert.alert("Login Success", "Welcome " + data.username);
-                navigation.navigate("Home", { username: data.username });
+
+                navigation.navigate(LANDING_PAGE_TITLE, {
+                  username: data.username,
+                });
               });
             } else {
               response.json().then((data) => {
@@ -124,8 +133,8 @@ function LoginPage({ navigation }) {
           title="Login Button"
           style={styles.loginButton}
           onPress={() => {
-            navigation.navigate("Home");
-            // login();
+            // navigation.navigate(LANDING_PAGE_TITLE);
+            login();
           }}
         >
           <Text styles={styles.textSign}>Login</Text>
@@ -133,7 +142,7 @@ function LoginPage({ navigation }) {
         <TouchableOpacity
           title="Register Button"
           style={styles.registerButton}
-          onPress={() => navigation.navigate("Registration")}
+          onPress={() => navigation.navigate(REGISTRATION_PAGE_TITLE)}
         >
           <Text styles={styles.textSign}>Sign up</Text>
         </TouchableOpacity>
