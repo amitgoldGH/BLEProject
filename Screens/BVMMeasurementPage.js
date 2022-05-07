@@ -1,5 +1,4 @@
-/* global fetch */
-import React, { useEffect } from "react";
+import React from "react";
 import {
   ImageBackground,
   StyleSheet,
@@ -11,17 +10,13 @@ import { useStore } from "react-redux";
 import { Buffer } from "buffer";
 
 import {
-  changeMode,
   sendChangeMode,
   changeBvmValue,
   createSession,
-  setSession,
+  sendSample,
 } from "../actions";
 
 import {
-  SPRING_SERVER_ADDRESS,
-  SAMPLE_CREATE,
-  SESSION_CREATE,
   PERIPHERAL_SERVICE_UUID,
   PERIPHERAL_CHARACTERISTIC_UUID,
   PRESSURE_TOP,
@@ -38,7 +33,11 @@ function BVMMeasurementPage({ route }) {
   // BLE INPUT FORMAT: PRESSURE[0] (sample 10 times to get rate),AIRWAY[1], SEAL[2]
   const [currentRead, setCurrentRead] = React.useState("");
 
-  const [isPressureGood, setIsPressureGood] = React.useState(false);
+  const [isPressureRateGood, setIsPressureRateGood] = React.useState(false);
+  const [isCurrentPressureGood, setIsCurrentPressureGood] =
+    React.useState(false);
+  const [currentPressureValue, setCurrentPressure] = React.useState(0);
+
   const [isAirwayOpen, setIsAirwayOpen] = React.useState(false);
   const [isMaskSealed, setIsMaskSealed] = React.useState(false);
 
@@ -49,13 +48,12 @@ function BVMMeasurementPage({ route }) {
   const [sessionCreated, setSessionCreated] = React.useState(false);
   const [currentSessionId, setCurrentSessionId] = React.useState("");
 
-  // On mount create session:
+  // On mount create session: // TODO: Get username from navigation route
   React.useEffect(() => {
     if (sessionCreated == false) {
-      createSession("username", "BVM").then((response) => {
+      createSession("username", "BVM", setCurrentSessionId).then((response) => {
         console.log("Response: ", response);
       });
-      // let SESSION_ID = createSession("username", "BVM");
       setSessionCreated(true);
     }
   }, [sessionCreated]);
@@ -78,11 +76,15 @@ function BVMMeasurementPage({ route }) {
     // Executed any time currentRead is changed.
     // TODO: currentRead.split() then change the touch per the array cells.
 
-    let arr = currentRead.split(",");
+    let measurements = currentRead.split(",");
     // console.log("In BVM current read use effect, array length: ", arr.length);
-    if (arr.length >= 3) {
-      arr[1] == "1" ? setIsAirwayOpen(true) : setIsAirwayOpen(false);
-      arr[2] == "1" ? setIsMaskSealed(true) : setIsMaskSealed(false);
+    if (measurements.length >= 3) {
+      measurements[0] <= PRESSURE_TOP && measurements[0] >= PRESSURE_BOT
+        ? setIsCurrentPressureGood(true)
+        : setIsCurrentPressureGood(false);
+      setCurrentPressure(measurements[0]);
+      measurements[1] == "1" ? setIsAirwayOpen(true) : setIsAirwayOpen(false);
+      measurements[2] == "1" ? setIsMaskSealed(true) : setIsMaskSealed(false);
     }
 
     return () => {
@@ -94,11 +96,11 @@ function BVMMeasurementPage({ route }) {
   React.useEffect(() => {
     // Executed any time isPressureGood is changed. to send sample to server
     // CODE HERE TO SEND SAMPLE TO SERVER
-    console.log("was pressure updated useffect!", new Date());
+    // console.log("was pressure updated useffect!", new Date());
     let state = store.getState();
     if (state.BLEs.status == "Connected") {
       let measurements = [
-        isPressureGood ? 1 : 0,
+        isPressureRateGood ? 1 : 0,
         isAirwayOpen ? 1 : 0,
         isMaskSealed ? 1 : 0,
       ];
@@ -110,6 +112,7 @@ function BVMMeasurementPage({ route }) {
     return () => {
       // Executed when screen is unmounted.
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wasPressureUpdated]);
 
   // var char; // updated via monitor with new value from manikin
@@ -152,10 +155,10 @@ function BVMMeasurementPage({ route }) {
 
               if (peak_count == 1) {
                 // GOOD RATE
-                setIsPressureGood(true);
+                setIsPressureRateGood(true);
               } else {
                 // BAD RATE
-                setIsPressureGood(false);
+                setIsPressureRateGood(false);
               }
               console.log(
                 "In monitor, wasPressueUpdated:",
@@ -184,89 +187,6 @@ function BVMMeasurementPage({ route }) {
         }
       );
     }
-  };
-
-  const sendSample = (sessionId, measurements) => {
-    const requestOptions = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        sampleId: null,
-        sessionId: sessionId,
-        measurements: measurements,
-      }),
-    };
-    const postFunc = async () => {
-      try {
-        await fetch(SPRING_SERVER_ADDRESS + SAMPLE_CREATE, requestOptions).then(
-          (response) => {
-            console.log(response.status);
-            if (response.status === 200) {
-              response.json().then((data) => {
-                console.log(
-                  "in postfunc response 200, sample Id: ",
-                  data.sampleId
-                );
-              });
-            } else {
-              response.json().then((data) => {
-                console.log(data.message);
-              });
-            }
-          }
-        );
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    postFunc();
-  };
-
-  const createSession = async (username, sessionMode) => {
-    let date = new Date();
-    const requestOptions = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        sessionId: null,
-        username: username,
-        type: sessionMode,
-        measurementSummary: [],
-        creationDate: date,
-      }),
-    };
-    const postFunc = async () => {
-      try {
-        await fetch(
-          SPRING_SERVER_ADDRESS + SESSION_CREATE,
-          requestOptions
-        ).then((response) => {
-          console.log(response.status);
-          if (response.status === 200) {
-            response.json().then((data) => {
-              console.log(
-                "in postfunc response 200, session id: ",
-                data.sessionId
-              );
-              setCurrentSessionId(data.sessionId);
-            });
-          } else {
-            response.json().then((data) => {
-              console.log(data.message);
-            });
-          }
-        });
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    postFunc();
   };
 
   const startPress = () => {
@@ -339,10 +259,18 @@ function BVMMeasurementPage({ route }) {
             <Text
               style={[
                 styles.statusText,
-                isPressureGood ? styles.goodColor : styles.badColor,
+                isCurrentPressureGood ? styles.goodColor : styles.badColor,
               ]}
             >
-              Ventilation volume: {isPressureGood ? "Normal" : "Not good"}
+              Ventilation volume: {currentPressureValue}
+            </Text>
+            <Text
+              style={[
+                styles.statusText,
+                isPressureRateGood ? styles.goodColor : styles.badColor,
+              ]}
+            >
+              Ventilation rate: {isPressureRateGood ? "Normal" : "Not good"}
             </Text>
             <Text
               style={[
@@ -382,7 +310,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "column-reverse",
   },
-  statusText: { fontSize: 18 },
+  statusText: { fontSize: 16 },
   statusView: {
     position: "absolute",
     width: 250,
@@ -400,7 +328,7 @@ const styles = StyleSheet.create({
     borderWidth: CIRCLE_BORDER_WIDTH,
     width: CIRCLE_DIM,
     height: CIRCLE_DIM,
-    borderRadius: 1000,
+    borderRadius: CIRCLE_BORDER_RADIUS,
   },
   touchedCircle: {
     backgroundColor: "green",
