@@ -2,6 +2,9 @@
 import { Buffer } from "buffer";
 import {
   SPRING_SERVER_ADDRESS,
+  SESSION_CREATE,
+  SAMPLE_CREATE,
+  SESSION_CALCULATE,
   PERIPHERAL_CHARACTERISTIC_UUID,
   PERIPHERAL_SERVICE_UUID,
   NUMBER_OF_DEVICES_TO_SCAN,
@@ -41,6 +44,11 @@ export const changeCprValue = (cprValue) => ({
 export const changeBvmValue = (bvmValue) => ({
   type: "CHANGE_BVM_VALUE",
   bvmValue: bvmValue,
+});
+
+export const setUsername = (username) => ({
+  type: "SET_USERNAME",
+  username: username,
 });
 
 //some thunks to control the BLE Device
@@ -169,4 +177,147 @@ export const sendChangeMode = (newMode) => {
       console.log(err);
     }
   };
+};
+
+export const createSession = async (
+  username,
+  sessionMode,
+  setSessionIdFunc
+) => {
+  let date = new Date();
+  const requestOptions = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sessionId: null,
+      username: username,
+      type: sessionMode,
+      measurementSummary: [],
+      creationDate: date,
+    }),
+  };
+  const postFunc = async () => {
+    try {
+      await fetch(SPRING_SERVER_ADDRESS + SESSION_CREATE, requestOptions).then(
+        (response) => {
+          // console.log(response.status);
+          if (response.status === 200) {
+            response.json().then((data) => {
+              console.log(
+                "in postfunc response 200, type: ",
+                data.type,
+                "session id: ",
+                data.sessionId
+              );
+              setSessionIdFunc(data.sessionId);
+            });
+          } else {
+            response.json().then((data) => {
+              console.log(data.message);
+            });
+          }
+        }
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  postFunc();
+};
+
+export const sendSample = (sessionId, measurements) => {
+  const requestOptions = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sampleId: null,
+      sessionId: sessionId,
+      measurements: measurements,
+    }),
+  };
+  const postFunc = async () => {
+    try {
+      await fetch(SPRING_SERVER_ADDRESS + SAMPLE_CREATE, requestOptions).then(
+        (response) => {
+          // console.log(response.status);
+          if (response.status === 200) {
+            response.json().then((data) => {
+              console.log(
+                "in send sample response 200, sample Id: ",
+                data.sampleId
+              );
+            });
+          } else {
+            response.json().then((data) => {
+              console.log(data.message);
+            });
+          }
+        }
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  postFunc();
+};
+
+export const cancelMonitor = (transaction_id) => {
+  return (dispatch, getState, DeviceManager) => {
+    console.log("Cancel monitor, ID: ", transaction_id);
+    DeviceManager.cancelTransaction(transaction_id);
+  };
+};
+
+export const calculateSession = (
+  sessionId,
+  setCurrentSessionDataFunc,
+  setStatusTextFunc
+) => {
+  const requestOptions = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  };
+  const postFunc = async () => {
+    try {
+      await fetch(
+        SPRING_SERVER_ADDRESS + SESSION_CALCULATE + sessionId,
+        requestOptions
+      ).then((response) => {
+        // console.log(response.status);
+        if (response.status === 200) {
+          response.json().then((data) => {
+            console.log(
+              "In calculate Session response 200",
+              data.type,
+              " ",
+              data.sessionId
+            );
+            setCurrentSessionDataFunc({
+              session_id: data.sessionId,
+              username: data.username,
+              session_type: data.type,
+              measurements: data.measurementSummary,
+              creation_date: data.creation_Date,
+            });
+          });
+        } else {
+          response.json().then((data) => {
+            console.log(data.message);
+            setStatusTextFunc(data.message);
+          });
+        }
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  postFunc();
 };
