@@ -13,8 +13,7 @@
   "plugins": ["react", "react-native", "import"],
   "rules": {
     "react/prop-types": 0,
-    "react/react-in-jsx-scope": 0,
-    "no-unused-vars": "off"
+    "react/react-in-jsx-scope": 0
   },
   "parser": "@babel/eslint-parser",
   "parserOptions": {
