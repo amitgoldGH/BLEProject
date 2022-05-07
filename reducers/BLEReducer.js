@@ -1,6 +1,7 @@
 const INITIAL_STATE = {
   BLEList: [],
   connectedDevice: {},
+  username: "",
   status: "disconnected",
   mode: "off",
   cprValue: "",
@@ -25,6 +26,9 @@ const BLEReducer = (state = INITIAL_STATE, action) => {
           status: action.status,
         };
       }
+    case "SET_USERNAME":
+      console.log("BLE REDUCER SET USERNAME: ", action.username);
+      return { ...state, username: action.username };
     case "CONNECTED_DEVICE":
       // console.log("Reducer connected device", action);
       console.log("Reducer connected device");
