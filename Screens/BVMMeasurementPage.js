@@ -14,9 +14,11 @@ import {
   changeBvmValue,
   createSession,
   sendSample,
+  cancelMonitor,
 } from "../actions";
 
 import {
+  RESULT_PAGE_TITLE,
   PERIPHERAL_SERVICE_UUID,
   PERIPHERAL_CHARACTERISTIC_UUID,
   PRESSURE_TOP,
@@ -25,23 +27,25 @@ import {
   CIRCLE_DIM,
   CIRCLE_BORDER_RADIUS,
   CIRCLE_BORDER_WIDTH,
+  GOOD_BVM_RATE_MESSAGE,
+  GOOD_BVM_VOLUME_MESSAGE,
+  BVM_TRANSACTION_ID,
 } from "../constants/constants";
 
-function BVMMeasurementPage({ route }) {
+function BVMMeasurementPage({ navigation, route }) {
   const store = useStore();
 
   // BLE INPUT FORMAT: PRESSURE[0] (sample 10 times to get rate),AIRWAY[1], SEAL[2]
   const [currentRead, setCurrentRead] = React.useState("");
+  const [isSubscribed, setIsSubscribed] = React.useState(false);
 
   const [isPressureRateGood, setIsPressureRateGood] = React.useState(false);
   const [isCurrentPressureGood, setIsCurrentPressureGood] =
     React.useState(false);
-  const [currentPressureValue, setCurrentPressure] = React.useState(0);
 
   const [isAirwayOpen, setIsAirwayOpen] = React.useState(false);
   const [isMaskSealed, setIsMaskSealed] = React.useState(false);
 
-  const [isSubscribed, setIsSubscribed] = React.useState(false);
   const [currentStatusText, setCurrentStatusText] = React.useState("Idle");
   const [wasPressureUpdated, setWasPressureUpdated] = React.useState(false);
 
@@ -51,8 +55,12 @@ function BVMMeasurementPage({ route }) {
   // On mount create session: // TODO: Get username from navigation route
   React.useEffect(() => {
     if (sessionCreated == false) {
-      createSession("username", "BVM", setCurrentSessionId).then((response) => {
-        console.log("Response: ", response);
+      createSession(
+        route.params.username,
+        route.params.type,
+        setCurrentSessionId
+      ).then((response) => {
+        // console.log("Response: ", response);
       });
       setSessionCreated(true);
     }
@@ -82,7 +90,6 @@ function BVMMeasurementPage({ route }) {
       measurements[0] <= PRESSURE_TOP && measurements[0] >= PRESSURE_BOT
         ? setIsCurrentPressureGood(true)
         : setIsCurrentPressureGood(false);
-      setCurrentPressure(measurements[0]);
       measurements[1] == "1" ? setIsAirwayOpen(true) : setIsAirwayOpen(false);
       measurements[2] == "1" ? setIsMaskSealed(true) : setIsMaskSealed(false);
     }
@@ -115,16 +122,18 @@ function BVMMeasurementPage({ route }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wasPressureUpdated]);
 
-  // var char; // updated via monitor with new value from manikin
+  // VARIABLES //
   var monitorSub; // holds subscription to manikin monitor to remove, use monitorSub.remove()
   var storeState = store.getState();
   var pressure_count = 0;
   var pressure_sample = [];
 
+  // FUNCTIONS
+
   const monitorInput = (callDevice) => {
     // console.log("monitor input, checking if null device: ", callDevice.name);
     if (callDevice && !isSubscribed) {
-      console.log("requested device is not null! starting monitor");
+      // console.log("requested device is not null! starting monitor");
       setIsSubscribed(true);
       return callDevice.monitorCharacteristicForService(
         PERIPHERAL_SERVICE_UUID,
@@ -136,7 +145,7 @@ function BVMMeasurementPage({ route }) {
           // console.log("In BVM subscription monitor");
 
           // TODO: SEND ALL READ INPUT TO SERVER
-
+          // console.log("In BVM monitor input");
           if (char != null) {
             let convertedRead = Buffer.from(char.value, "base64").toString(
               "ascii"
@@ -160,16 +169,16 @@ function BVMMeasurementPage({ route }) {
                 // BAD RATE
                 setIsPressureRateGood(false);
               }
-              console.log(
-                "In monitor, wasPressueUpdated:",
-                wasPressureUpdated,
-                " pressure_sample:",
-                pressure_sample,
-                "pressure_count:",
-                pressure_count,
-                " peak_count:",
-                peak_count
-              );
+              // console.log(
+              //   "In monitor, wasPressueUpdated:",
+              //   wasPressureUpdated,
+              //   " pressure_sample:",
+              //   pressure_sample,
+              //   "pressure_count:",
+              //   pressure_count,
+              //   " peak_count:",
+              //   peak_count
+              // );
               // Initiate useEffect to send sample to server
               setWasPressureUpdated((old) => !old);
 
@@ -184,7 +193,8 @@ function BVMMeasurementPage({ route }) {
             // Update current page state and refresh (if it's different from previous read.)
             setCurrentRead(convertedRead);
           }
-        }
+        },
+        BVM_TRANSACTION_ID
       );
     }
   };
@@ -203,32 +213,40 @@ function BVMMeasurementPage({ route }) {
     }
   };
 
-  const pausePress = () => {
-    if (
-      storeState.BLEs.status == "Connected" ||
-      storeState.BLEs.status == "Listeniing"
-    ) {
-      store.dispatch(sendChangeMode("off"));
-      setCurrentStatusText("Paused...");
-    } else {
-      setCurrentStatusText("Not connected!");
-    }
-  };
+  // const pausePress = () => {
+  //   if (
+  //     storeState.BLEs.status == "Connected" ||
+  //     storeState.BLEs.status == "Listeniing"
+  //   ) {
+  //     store.dispatch(cancelMonitor(BVM_TRANSACTION_ID));
+  //     store.dispatch(sendChangeMode("off"));
+  //     setCurrentStatusText("Paused...");
+  //   } else {
+  //     setCurrentStatusText("Not connected!");
+  //   }
+  // };
 
   const stopPress = () => {
     if (
       storeState.BLEs.status == "Connected" ||
       storeState.BLEs.status == "Listeniing"
     ) {
+      store.dispatch(cancelMonitor(BVM_TRANSACTION_ID));
       store.dispatch(sendChangeMode("off"));
       setCurrentStatusText("Stopped...");
     } else {
       setCurrentStatusText("Not connected!");
     }
-    if (monitorSub) {
-      monitorSub.remove();
-      setIsSubscribed(false);
-    }
+  };
+
+  const resultPress = () => {
+    // If session ID exists pass it as route var else pass null
+    let session_id = currentSessionId != "" ? currentSessionId : null;
+    navigation.navigate(RESULT_PAGE_TITLE, {
+      sessionId: session_id,
+      type: route.params.type,
+      username: route.params.username,
+    });
   };
 
   return (
@@ -236,20 +254,33 @@ function BVMMeasurementPage({ route }) {
       style={styles.background}
       source={require("../assets/background.jpg")}
     >
-      <View style={{ backgroundColor: "white", borderRadius: 3 }}>
-        <Text>State: {currentStatusText}</Text>
-      </View>
       <View style={styles.bottomView}>
-        <TouchableOpacity style={styles.button} onPress={startPress}>
-          <Text>Start</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={pausePress}>
-          <Text>Pause</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={stopPress}>
-          <Text>Stop</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <View style={styles.controlButtonContainer}>
+            <TouchableOpacity style={styles.button} onPress={startPress}>
+              <Text>Start</Text>
+            </TouchableOpacity>
+            {/* <TouchableOpacity style={styles.button} onPress={pausePress}>
+              <Text>Pause</Text>
+            </TouchableOpacity> */}
+            <TouchableOpacity style={styles.button} onPress={stopPress}>
+              <Text>Stop</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.resultButtonView}>
+            <TouchableOpacity
+              style={[styles.button, styles.resultButton]}
+              onPress={resultPress}
+            >
+              <Text>Results</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={{ backgroundColor: "white", borderRadius: 3 }}>
+          <Text>State: {currentStatusText}</Text>
+        </View>
       </View>
+
       <View style={styles.manikinImageBackground}>
         <ImageBackground
           style={{ width: "100%", height: undefined, aspectRatio: 1 }}
@@ -262,7 +293,7 @@ function BVMMeasurementPage({ route }) {
                 isCurrentPressureGood ? styles.goodColor : styles.badColor,
               ]}
             >
-              Ventilation volume: {currentPressureValue}
+              Ventilation volume {GOOD_BVM_VOLUME_MESSAGE}
             </Text>
             <Text
               style={[
@@ -270,7 +301,7 @@ function BVMMeasurementPage({ route }) {
                 isPressureRateGood ? styles.goodColor : styles.badColor,
               ]}
             >
-              Ventilation rate: {isPressureRateGood ? "Normal" : "Not good"}
+              Ventilation rate {GOOD_BVM_RATE_MESSAGE}
             </Text>
             <Text
               style={[
@@ -278,7 +309,7 @@ function BVMMeasurementPage({ route }) {
                 isMaskSealed ? styles.goodColor : styles.badColor,
               ]}
             >
-              Mask seal: {isMaskSealed ? "Sealed" : "Not Sealed"}
+              Mask seal
             </Text>
             <Text
               style={[
@@ -310,13 +341,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "column-reverse",
   },
-  statusText: { fontSize: 16 },
+  statusText: { fontSize: 15 },
   statusView: {
     position: "absolute",
-    width: 250,
+    width: 300,
     height: 100,
     top: 0,
-    left: 80,
+    left: 70,
   },
   airWayCircle: {
     position: "absolute",
@@ -352,6 +383,30 @@ const styles = StyleSheet.create({
     height: "30%",
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  buttonContainer: {
+    flex: 1,
+    width: "130%",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+
+  controlButtonContainer: {
+    width: "80%",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 1,
+  },
+  resultButtonView: {
+    width: "30%",
+    justifyContent: "center",
+    right: "20%",
+  },
+  resultButton: {
+    width: "100%",
+    right: "30%",
   },
   bottomView: {
     //backgroundColor: 'red',
