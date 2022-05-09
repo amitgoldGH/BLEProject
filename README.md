@@ -16,6 +16,9 @@ clone this repository
 
 cd to the directory and type "npm install"
 
+in BLEProject/android/gradle.properties set the path to your Java 11 jdk
+if your android sdk isn't in your environment variables you'll need to create a local properties file in the android folder and specify that location.
+
 Connect Android phone that supports Bluetooth 4.0 and above via USB
 
 Enable Developer mode -> Enable USB Debugging
