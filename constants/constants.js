@@ -25,11 +25,13 @@ export const NUMBER_OF_DEVICES_TO_SCAN = 10;
 export const BVM_READ_DELAY = 0.8; // 800 milliseconds
 export const PRESSURE_TOP = 1.7;
 export const PRESSURE_BOT = 0.9;
-export const PRESSURE_SAMPLE_COUNT = 10;
+// export const PRESSURE_SAMPLE_COUNT = 10;
+export const PRESSURE_SAMPLE_COUNT = 8;
 export const GOOD_BVM_VOLUME_MESSAGE =
   "(Good: " + PRESSURE_BOT + "-" + PRESSURE_TOP + ")";
-export const GOOD_BVM_RATE_MESSAGE =
-  "(Good: 1 peak in " + BVM_READ_DELAY * PRESSURE_SAMPLE_COUNT + " seconds)";
+// export const GOOD_BVM_RATE_MESSAGE =
+//   "(Good: 1 peak in " + BVM_READ_DELAY * PRESSURE_SAMPLE_COUNT + " seconds)";
+export const GOOD_BVM_RATE_MESSAGE = "(Good: 1 peak in 6 seconds)";
 
 // CPR
 export const GOOD_RATE_TOP = 120;
