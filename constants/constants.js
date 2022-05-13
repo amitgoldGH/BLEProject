@@ -17,7 +17,7 @@ export const BVM_TRANSACTION_ID = "BVM_TRANSACTION_ID";
 export const CPR_TRANSACTION_ID = "CPR_TRANSACTION_ID";
 
 // PAIRING
-export const TIMEOUT_COUNT = 20;
+export const TIMEOUT_COUNT = 10;
 export const SLEEP_TIME_MS = 1000;
 export const NUMBER_OF_DEVICES_TO_SCAN = 10;
 
