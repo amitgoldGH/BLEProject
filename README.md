@@ -27,3 +27,4 @@ Open CMD/Terminal, head to the project's folder
 
 type: "npm run android"
 
+![image](https://user-images.githubusercontent.com/17098942/207594304-c7815a72-891b-45cc-9400-3aaa86ca7afe.png)
